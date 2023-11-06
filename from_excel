@@ -1,0 +1,178 @@
+############################# Importations #############################
+
+import sys
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.neural_network import MLPRegressor
+from sklearn.metrics import r2_score, make_scorer
+from sklearn.model_selection import train_test_split, cross_val_score
+
+from PyQt5 import QtWidgets
+
+############################## take real output ##################################"
+
+# Specify the path to the Excel file
+excel_file_path = r"C:\Users\..."
+data_output = pd.read_excel(excel_file_path,sheet_name="Output",header=None, usecols="B:W")
+
+# Create a list to store the sub-DataFrames
+all_output = []
+header_output=[]
+
+
+# Split the DataFrame into sub-DataFrames of 26 rows each
+for i in range(0, len(data_output), 26):
+    output = np.array(data_output.iloc[i:i + 26].dropna(how="all"))
+    header_output.extend(data_output.iloc[2])
+    all_output.append(output)
+
+############################## take real input ##################################"
+
+# Specify the path to the Excel file
+
+data_input = pd.read_excel(excel_file_path,sheet_name="Input", usecols="A:Z").dropna(how="all")
+
+# Create a list to store the sub-DataFrames
+all_input = []
+
+header_input=np.array(data_input['Unnamed: 0'])
+
+# Split the DataFrame in columns
+for i in range(1, 26):
+    inputs = (data_input['test'+str(i)]).tolist()
+    all_input.append(inputs)
+
+############################## (X,Y) ##################################"
+X,Y=[],[]
+
+for i in range (len(all_output)): #for each run
+    Xrun=[]
+    for k in range(3,np.shape(all_output[1])[0]): #for each depth 
+        #for j in range(1,np.shape(all_output[1])[1]+1): #for each colonne ex : s11-s33 
+        j=1
+        
+        Xrun.extend(all_input[i])
+        Xrun.append(all_output[i][k][0]) #depth
+        X.append(Xrun)
+        Y.append(all_output[i][k][j])
+    
+model = MLPRegressor(hidden_layer_sizes=(1,9), activation='tanh',
+              solver='adam', max_iter=50000, random_state=0)
+
+np.array(X)
+np.array(Y)
+        
+# K-Fold Cross Validation
+scores = cross_val_score(model, X, Y, cv=5, scoring=make_scorer(r2_score))
+
+print(f"Cross-Validation R2 Scores: {scores}")
+print(f"Mean R2 Score: {scores.mean()}")
+
+# Splitting data for further visualization
+X_train, X_test, Y_train, Y_test = train_test_split(
+    X, Y, test_size=0.25, random_state=0)
+
+model.fit(X_train, Y_train)
+
+
+############################## prediction ##################################"
+class Window(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+
+    def initUI(self):
+        self.setWindowTitle('Input Values')
+        self.setGeometry(100, 100, 400, 200)
+        self.setStyleSheet("background-color: #E6E6FA;")  # Couleur lilas en code hexadécimal
+
+        self.label_1 = QtWidgets.QLabel()
+        self.label_1.setText('Velocity (mm/s) - between 10,000 and 100,000')
+
+        self.label_2 = QtWidgets.QLabel()
+        self.label_2.setText('Angle Alpha - between 5 and 10')
+
+        self.label_3 = QtWidgets.QLabel()
+        self.label_3.setText('Diameter (mm) - between 0.2 and 0.6')
+
+        self.label_4 = QtWidgets.QLabel()
+        self.label_4.setText('Coverage (%) - between 100 and 300')
+
+        self.label_5 = QtWidgets.QLabel()
+        self.label_5.setText('Depth (mm) - between 0.5 and 4')
+
+        self.input_1 = QtWidgets.QLineEdit()
+        self.input_1.setText('7000')
+
+        self.input_2 = QtWidgets.QLineEdit()
+        self.input_2.setText('5.5')
+
+        self.input_3 = QtWidgets.QLineEdit()
+        self.input_3.setText('0.4')
+
+        self.input_4 = QtWidgets.QLineEdit()
+        self.input_4.setText('200')
+
+        self.input_5 = QtWidgets.QLineEdit()
+        self.input_5.setText('1.8')
+
+        self.connexion_button = QtWidgets.QPushButton('Run')
+        self.connexion_button.clicked.connect(self.run)
+        self.connexion_button.setStyleSheet("QPushButton { border-radius: 5px; border: 1px solid #7F00FF}")
+
+        layout = QtWidgets.QGridLayout()
+        layout.addWidget(self.label_1, 0, 0)
+        layout.addWidget(self.input_1, 0, 1)
+        layout.addWidget(self.label_2, 1, 0)
+        layout.addWidget(self.input_2, 1, 1)
+        layout.addWidget(self.label_3, 2, 0)
+        layout.addWidget(self.input_3, 2, 1)
+        layout.addWidget(self.label_4, 3, 0)
+        layout.addWidget(self.input_4, 3, 1)
+        layout.addWidget(self.label_5, 4, 0)
+        layout.addWidget(self.input_5, 4, 1)
+        layout.addWidget(self.connexion_button, 5, 0, 1, 2)
+
+        self.setLayout(layout)
+
+    def run(self):
+        velocity_user = float(self.input_1.text()) if self.input_1.text() else 0
+        angle_user = float(self.input_2.text()) if self.input_2.text() else 0
+        diameter_user = float(self.input_3.text()) if self.input_3.text() else 0
+        coverage_user = float(self.input_4.text()) if self.input_4.text() else 0
+
+        # Generate new prediction based on user input
+        # Adjust this based on the real-life depth range
+        depths_new = np.linspace(0, 1, 200)
+        input_user = [velocity_user,angle_user,diameter_user,4,0.8,0.3,0.3,2.10E+05,
+                      2.10E+05,1.570796327,115384.6154,7.80E-09,0.068053359,
+                      0.007718766,-40485745224,6.17501E-07,3.08751E-06,3.70501E-06,
+                      coverage_user,0.081976464]
+        X_new_list=[]
+        for i in range(len(input_user)):
+            X_depth=[]
+            X_depth.extend(input_user)
+            X_depth.append(depths_new[i])
+            X_new_list.append(X_depth)
+        print('a',X_new_list)
+        
+        
+        X_new=np.array(X_new_list)
+        predictions_new = model.predict(X_new)
+
+        # Visualize the results
+        plt.figure(figsize=(10, 6))
+        plt.plot(depths_new, predictions_new, 'r-', label='Predicted Curve')
+        plt.xlabel('Depth (mm)')
+        plt.ylabel('Residual Stress S11-S33 (MPa)')
+        plt.title('Predicted Residual Stress Profile based on User Input')
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
+if __name__ == '__main__':
+    app = QtWidgets.QApplication(sys.argv)
+    main_window = Window()
+    main_window.show()
+    sys.exit(app.exec_())
